@@ -30,6 +30,8 @@
 #include "bootutil/image.h"
 #include "bootutil/bootutil.h"
 #include "flash_map_backend/flash_map_backend.h"
+#include <sys/printk.h>
+#include <device.h>
 
 #ifdef CONFIG_FW_INFO
 #include <fw_info.h>
@@ -115,6 +117,7 @@ static inline bool boot_skip_serial_recovery()
 MCUBOOT_LOG_MODULE_REGISTER(mcuboot);
 
 void os_heap_init(void);
+void blink0(void);
 
 #if defined(CONFIG_ARM)
 
@@ -331,12 +334,24 @@ void zephyr_boot_log_stop(void)
 #endif/* defined(CONFIG_LOG) && !defined(CONFIG_LOG_IMMEDIATE) &&\
         !defined(CONFIG_LOG_PROCESS_THREAD) */
 
+/* scheduling priority used by each thread */
+#define PRIORITY 6
+#define STACKSIZE 1024
+
+#define LED0_NODE       DT_ALIAS(led0)
+
+#define LED0			DT_GPIO_LABEL(LED0_NODE, gpios)
+#define PIN				DT_GPIO_PIN(LED0_NODE, gpios)
+#define FLAGS			DT_GPIO_FLAGS(LED0_NODE, gpios)
+
 void main(void)
 {
+
     struct boot_rsp rsp;
     int rc;
 
-    BOOT_LOG_INF("Starting bootloader");
+    printk("\nBootLoader starting: v%s %s %s\n", MCUBOOT_VERSION , __DATE__, __TIME__);
+    k_msleep(250);
 
     os_heap_init();
 
@@ -451,3 +466,34 @@ void main(void)
     while (1)
         ;
 }
+
+
+void blink0(void)
+{
+    const struct device *dev;
+
+    dev = device_get_binding(LED0);
+    if (dev == NULL) {
+        printk("LED0 not found\n");
+        return;
+    }
+
+    int err = gpio_pin_configure(dev, PIN, GPIO_OUTPUT_ACTIVE | FLAGS);
+    if (err < 0) {
+        printk("LED0 false configure\n");
+        return;
+    }
+	gpio_pin_set(dev, PIN, 1);
+
+    while (1)
+    {
+        gpio_pin_toggle(dev, PIN);
+        k_msleep(250);
+    }
+    
+}
+
+
+K_THREAD_DEFINE(blink0_id, STACKSIZE, blink0, NULL, NULL, NULL,
+		K_HIGHEST_APPLICATION_THREAD_PRIO, 0, 0);
+

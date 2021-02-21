@@ -1836,6 +1836,10 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
 
         /* Set the previously determined swap type */
         bs.swap_type = BOOT_SWAP_TYPE(state);
+        if (bs.swap_type == BOOT_SWAP_TYPE_TEST)
+            BOOT_LOG_INF("Start upgrade ...");
+        else if (bs.swap_type == BOOT_SWAP_TYPE_REVERT)
+            BOOT_LOG_INF("Start revert firmware ...");
 
         switch (BOOT_SWAP_TYPE(state)) {
         case BOOT_SWAP_TYPE_NONE:
@@ -1846,6 +1850,7 @@ context_boot_go(struct boot_loader_state *state, struct boot_rsp *rsp)
         case BOOT_SWAP_TYPE_REVERT:
             rc = boot_perform_update(state, &bs);
             assert(rc == 0);
+            BOOT_LOG_INF("Completed");
             break;
 
         case BOOT_SWAP_TYPE_FAIL:
